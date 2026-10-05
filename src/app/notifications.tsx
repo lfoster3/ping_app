@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '@/components/Avatar';
 import { Card } from '@/components/Card';
 import { useFamily } from '@/data/FamilyProvider';
-import { ago } from '@/data/format';
+import { ago, minutesSince } from '@/data/format';
 import type { AlertItem } from '@/data/types';
 import { colors, fonts, space } from '@/theme';
 
@@ -90,7 +90,7 @@ export default function NotificationsScreen() {
                 <Text style={styles.rowTitle}>{a.title}</Text>
                 <Text style={styles.rowBody}>{a.body}</Text>
               </View>
-              <Text style={styles.time}>{ago(a.minutesAgo)}</Text>
+              <Text style={styles.time}>{ago(minutesSince(a.at))}</Text>
             </Pressable>
           );
         })}

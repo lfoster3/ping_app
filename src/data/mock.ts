@@ -1,3 +1,4 @@
+import { clock } from './format';
 import type { AlertItem, Member, PingMessage, Place } from './types';
 
 const MOCK_HISTORY = { historySlotMin: 30, historyStartSlot: 0 };
@@ -5,14 +6,34 @@ const MOCK_HISTORY = { historySlotMin: 30, historyStartSlot: 0 };
 // Mock data until the band + backend are wired up. Everything the UI reads
 // goes through `FamilyProvider`, so swapping this for API calls is local.
 
-/** "Now" for the mock day: 3:05 PM. */
-export const NOW_MIN = 15 * 60 + 5;
+/** When the app opened — the mock story is anchored to the real clock. */
+export const LOADED_AT = Date.now();
+
+/** Minutes since midnight when the app opened. */
+export const NOW_MIN = new Date(LOADED_AT).getHours() * 60 + new Date(LOADED_AT).getMinutes();
+
+/** The mock story was written as if it were 3:05 PM. */
+const STORY_NOW = 15 * 60 + 5;
+
+/**
+ * Moves a story time (e.g. 8:14 AM) so it sits the same distance before the
+ * real "now". Can go below 0 (yesterday); `clock()` wraps it.
+ */
+const shift = (storyMin: number) => NOW_MIN - (STORY_NOW - storyMin);
+
+/** Minutes-since-midnight `min` minutes before the app opened. */
+const before = (min: number) => NOW_MIN - min;
+
+/** Timestamp `min` minutes before the app opened. */
+const minAgo = (min: number) => LOADED_AT - min * 60_000;
 
 export const places: Place[] = [
-  { id: 'home', name: 'Home', kind: 'home', point: { x: 0.2, y: 0.72 } },
-  { id: 'school', name: 'School', kind: 'school', point: { x: 0.3, y: 0.18 } },
-  { id: 'park', name: 'Riverside Park', kind: 'park', point: { x: 0.84, y: 0.22 } },
-  { id: 'work', name: 'Office', kind: 'work', point: { x: 0.62, y: 0.86 } },
+  // A house on N Lawrence Street, Harters Heights (just south of campus).
+  { id: 'home', name: 'Home', kind: 'home', coords: { lat: 41.6924, lng: -86.24432 } },
+  // Between DeBartolo, Fitzpatrick, Cushing and Stinson-Remick halls.
+  { id: 'school', name: 'School', kind: 'school', coords: { lat: 41.6988, lng: -86.2371 } },
+  { id: 'park', name: 'Riverside Park', kind: 'park', coords: { lat: 41.70552, lng: -86.23254 } },
+  { id: 'work', name: 'Office', kind: 'work', coords: { lat: 41.69976, lng: -86.23672 } },
 ];
 
 /** Small deterministic PRNG so the charts look the same on every reload. */
@@ -26,12 +47,12 @@ function seeded(seed: number) {
 
 type Segment = { until: number; base: number; jitter: number };
 
-/** Builds a half-hourly heart-rate day from a list of activity segments. */
+/** Builds a half-hourly heart-rate day (midnight → now) from story-time activity segments. */
 function day(seed: number, segments: Segment[], last?: number): number[] {
   const rand = seeded(seed);
   const out: number[] = [];
   for (let t = 0; t <= NOW_MIN; t += 30) {
-    const seg = segments.find((s) => t < s.until) ?? segments[segments.length - 1];
+    const seg = segments.find((s) => t < shift(s.until)) ?? segments[segments.length - 1];
     out.push(Math.round(seg.base + (rand() - 0.5) * 2 * seg.jitter));
   }
   if (last !== undefined) out[out.length - 1] = last;
@@ -39,6 +60,9 @@ function day(seed: number, segments: Segment[], last?: number): number[] {
 }
 
 const H = 60;
+
+/** The family shares one Home (and one School, Office…) — always look places up by id. */
+const coordsOf = (id: Place['id']) => places.find((p) => p.id === id)!.coords;
 
 export const initialMembers: Member[] = [
   {
@@ -57,10 +81,10 @@ export const initialMembers: Member[] = [
     ], 68),
     ...MOCK_HISTORY,
     battery: 64,
-    location: { label: 'Home', point: places[0].point },
+    location: { label: 'Home', coords: coordsOf('home') },
     visits: [
-      { placeId: 'home', from: 12 * H + 30, to: NOW_MIN },
-      { placeId: 'work', from: 8 * H + 40, to: 12 * H + 10 },
+      { placeId: 'home', from: before(95), to: null },
+      { placeId: 'work', from: before(180), to: before(115) },
     ],
   },
   {
@@ -79,8 +103,8 @@ export const initialMembers: Member[] = [
     ], 74),
     ...MOCK_HISTORY,
     battery: 41,
-    location: { label: 'Office', point: places[3].point },
-    visits: [{ placeId: 'work', from: 8 * H + 15, to: NOW_MIN }],
+    location: { label: 'Office', coords: coordsOf('work') },
+    visits: [{ placeId: 'work', from: before(140), to: null }],
   },
   {
     id: 'nico',
@@ -90,7 +114,7 @@ export const initialMembers: Member[] = [
     state: 'active',
     activity: 'Working out',
     lastSyncMin: 3,
-    activityMin: 38,
+    activitySince: minAgo(38),
     heartRate: 141,
     heartRateHistory: day(37, [
       { until: 7 * H, base: 62, jitter: 5 },
@@ -101,10 +125,10 @@ export const initialMembers: Member[] = [
     ], 141),
     ...MOCK_HISTORY,
     battery: 72,
-    location: { label: 'Near Riverside Park', point: { x: 0.49, y: 0.46 } },
+    location: { label: 'Near Riverside Park', coords: { lat: 41.70336, lng: -86.23919 } },
     visits: [
-      { placeId: 'home', from: 12 * H + 48, to: 14 * H + 20 },
-      { placeId: 'school', from: 8 * H + 14, to: 12 * H + 42 },
+      { placeId: 'home', from: before(110), to: before(45) },
+      { placeId: 'school', from: before(170), to: before(118) },
     ],
   },
   {
@@ -122,10 +146,10 @@ export const initialMembers: Member[] = [
     ], 61),
     ...MOCK_HISTORY,
     battery: 88,
-    location: { label: 'School', point: places[1].point },
+    location: { label: 'School', coords: coordsOf('school') },
     visits: [
-      { placeId: 'school', from: 8 * H + 5, to: NOW_MIN },
-      { placeId: 'home', from: 0, to: 7 * H + 45 },
+      { placeId: 'school', from: before(150), to: null },
+      { placeId: 'home', from: before(240), to: before(165) },
     ],
   },
 ];
@@ -156,7 +180,7 @@ export const initialAlerts: AlertItem[] = [
     tone: 'attention',
     title: "Dad's heart rate is above usual",
     body: 'Resting average is 12 bpm higher than his 30-day baseline.',
-    minutesAgo: 6,
+    at: minAgo(6),
   },
   {
     id: 'a2',
@@ -164,22 +188,22 @@ export const initialAlerts: AlertItem[] = [
     tone: 'info',
     title: 'Nico started a workout',
     body: 'Near Riverside Park · heart rate in the moderate zone.',
-    minutesAgo: 38,
+    at: minAgo(38),
   },
   {
     id: 'a3',
     memberId: 'nico',
     tone: 'success',
     title: 'Nico left Home',
-    body: 'Left at 2:20 PM.',
-    minutesAgo: 45,
+    body: `Left at ${clock(before(45))}.`,
+    at: minAgo(45),
   },
   {
     id: 'a4',
     memberId: 'luke',
     tone: 'success',
     title: 'Luke arrived at School',
-    body: 'Arrived at 8:05 AM.',
-    minutesAgo: 420,
+    body: `Arrived at ${clock(before(150))}.`,
+    at: minAgo(150),
   },
 ];

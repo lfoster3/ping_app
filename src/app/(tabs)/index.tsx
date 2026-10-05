@@ -53,7 +53,7 @@ export default function FamilyScreen() {
 
   const openMember = (m: Member) => {
     focus(m.id);
-    // Members without location sharing (Pedro's Garmin) open on heart rate.
+    // Members without a location yet open on heart rate.
     router.navigate(m.location ? '/map' : '/trends');
   };
 
