@@ -1,12 +1,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import type { HeartRateMonitor, HeartRateReading, MonitorStatus } from '@/devices/heartRate';
+import { distanceM, type LocationFix } from '@/devices/location';
 import { createMonitor } from '@/devices/monitor';
+import { createSimulatedLocationFeed } from '@/devices/simulatedLocation';
 import { createSimulatedMonitor } from '@/devices/simulated';
-import { emptyZoneCounts, zoneOf, type ZoneCounts } from './format';
-import { initialAlerts, initialMembers, pedroProfile, places } from './mock';
+import { emptyZoneCounts, minutesSince, zoneOf, type ZoneCounts } from './format';
+import { initialAlerts, initialMembers, LOADED_AT, NOW_MIN, pedroProfile, places } from './mock';
 import { baseline, overnightHeart, RESTING_ALERT_BPM } from './pedroHistory';
-import type { AlertItem, LiveSource, Member, Place, SentPing } from './types';
+import type { AlertItem, GpsInfo, LiveSource, Member, Place, SentPing, Visit } from './types';
 
 /** Pedro's day chart uses 5-minute buckets so a demo shows a real line quickly. */
 const LIVE_SLOT_MIN = 5;
@@ -116,6 +118,53 @@ function buildPedro(live: LiveState, now: number): Member {
   };
 }
 
+/** Within this distance of a saved place counts as being there. */
+const AT_PLACE_M = 75;
+
+function nearestPlace(fix: LocationFix) {
+  let nearest: { place: Place; d: number } | null = null;
+  for (const place of places) {
+    const d = distanceM(fix, place.coords);
+    if (!nearest || d < nearest.d) nearest = { place, d };
+  }
+  return nearest;
+}
+
+/** "At home", "Near Riverside Park" or "On the move" from the nearest saved place. */
+function placeLabel(fix: LocationFix): string {
+  const nearest = nearestPlace(fix);
+  if (nearest && nearest.d <= AT_PLACE_M) return nearest.place.name === 'Home' ? 'At home' : `At ${nearest.place.name}`;
+  if (nearest && nearest.d <= 250) return `Near ${nearest.place.name}`;
+  return fix.speedMps > 0.5 ? 'On the move' : 'Out';
+}
+
+/** Same timeline as the mock visits: minutes since midnight of the day the app opened. */
+const minuteOf = (at: number) => NOW_MIN + Math.floor((at - LOADED_AT) / 60_000);
+
+/** Closes the open visit when they leave, and opens one when they arrive somewhere. */
+function trackVisits(visits: Visit[], fix: LocationFix): Visit[] {
+  const nearest = nearestPlace(fix);
+  const placeId = nearest && nearest.d <= AT_PLACE_M ? nearest.place.id : null;
+  const open = visits.find((v) => v.to === null);
+  if (open?.placeId === placeId) return visits;
+  const min = minuteOf(fix.at);
+  let next = open ? visits.map((v) => (v === open ? { ...v, to: min } : v)) : visits;
+  if (placeId) next = [...next, { placeId, from: min, to: null }];
+  return next;
+}
+
+function withGps(m: Member, gps: GpsInfo | undefined, visits: Visit[] | undefined): Member {
+  if (!gps) return m;
+  return {
+    ...m,
+    gps,
+    visits: visits ?? m.visits,
+    // Each fix is the band checking in.
+    lastSyncMin: Math.min(m.lastSyncMin, minutesSince(gps.fix.at)),
+    location: { label: placeLabel(gps.fix), coords: { lat: gps.fix.lat, lng: gps.fix.lng } },
+  };
+}
+
 type FamilyContextValue = {
   members: Member[];
   places: Place[];
@@ -146,6 +195,10 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
   const [pings, setPings] = useState<SentPing[]>([]);
   const [focusedId, setFocusedId] = useState('nico');
 
+  const [gps, setGps] = useState<Record<string, GpsInfo>>({});
+  const [visits, setVisits] = useState<Record<string, Visit[]>>(() =>
+    Object.fromEntries(initialMembers.map((m) => [m.id, m.visits])),
+  );
   const [live, setLive] = useState(initialLive);
   const [now, setNow] = useState(() => Date.now());
   const [garmin] = useState(createMonitor);
@@ -160,6 +213,20 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
   }, [live.status]);
 
   useEffect(() => () => monitorRef.current?.disconnect(), []);
+
+  // Positions for everyone, every GPS_INTERVAL_MS. Swap in the real feed here.
+  useEffect(() => {
+    const feed = createSimulatedLocationFeed();
+    feed.start((memberId, fix) => {
+      setGps((prev) => ({ ...prev, [memberId]: { source: feed.source, fix } }));
+      setVisits((prev) => {
+        const before = prev[memberId] ?? [];
+        const after = trackVisits(before, fix);
+        return after === before ? prev : { ...prev, [memberId]: after };
+      });
+    });
+    return () => feed.stop();
+  }, []);
 
   const connectLive = useCallback(
     (source: LiveSource) => {
@@ -205,7 +272,10 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const pedro = useMemo(() => buildPedro(live, now), [live, now]);
-  const allMembers = useMemo(() => [...members, pedro], [members, pedro]);
+  const allMembers = useMemo(
+    () => [...members, pedro].map((m) => withGps(m, gps[m.id], visits[m.id])),
+    [members, pedro, gps, visits],
+  );
 
   const memberById = useCallback((id: string) => allMembers.find((m) => m.id === id), [allMembers]);
   const placeById = useCallback((id: string) => places.find((p) => p.id === id), []);

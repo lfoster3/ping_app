@@ -36,6 +36,7 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="send-ping" options={{ presentation: 'modal' }} />
           <Stack.Screen name="notifications" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="map-full" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
         </Stack>
       </FamilyProvider>
     </SafeAreaProvider>

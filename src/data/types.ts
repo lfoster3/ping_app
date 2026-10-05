@@ -1,4 +1,5 @@
 import type { MonitorStatus } from '@/devices/heartRate';
+import type { LatLng, LocationFix, LocationSource } from '@/devices/location';
 
 export type MemberRole = 'parent' | 'child';
 
@@ -9,15 +10,15 @@ export type Place = {
   id: string;
   name: string;
   kind: 'home' | 'school' | 'park' | 'work';
-  /** Normalised map position (0–1) inside the map viewport. */
-  point: { x: number; y: number };
+  coords: LatLng;
 };
 
 export type Visit = {
   placeId: string;
-  /** Minutes since midnight. */
+  /** Minutes since midnight today (negative = yesterday). */
   from: number;
-  to: number;
+  /** null while they're still there. */
+  to: number | null;
 };
 
 export type LiveSource = 'garmin' | 'simulated';
@@ -34,6 +35,12 @@ export type LiveInfo = {
   zoneCounts: Record<'resting' | 'light' | 'moderate' | 'high', number>;
 };
 
+/** Latest position from the GPS feed (real or simulated). */
+export type GpsInfo = {
+  source: LocationSource;
+  fix: LocationFix;
+};
+
 export type Member = {
   id: string;
   name: string;
@@ -44,8 +51,8 @@ export type Member = {
   activity: string;
   /** Minutes since the band last synced (Infinity if it never has). */
   lastSyncMin: number;
-  /** Minutes the current activity has been going (used for "Working out · 38 min"). */
-  activityMin?: number;
+  /** When the current activity started (used for "Working out · 38 min"). */
+  activitySince?: number;
   /** null until the first reading arrives. */
   heartRate: number | null;
   /**
@@ -58,9 +65,10 @@ export type Member = {
   battery: number | null;
   location: {
     label: string;
-    point: { x: number; y: number };
+    coords: LatLng;
   } | null;
   visits: Visit[];
+  gps?: GpsInfo;
   live?: LiveInfo;
   /** Has real Garmin/WHOOP history (src/data/pedroHistory.ts). */
   realHistory?: boolean;
@@ -86,5 +94,5 @@ export type AlertItem = {
   tone: 'info' | 'attention' | 'success';
   title: string;
   body: string;
-  minutesAgo: number;
+  at: number;
 };

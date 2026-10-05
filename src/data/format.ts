@@ -1,6 +1,9 @@
 import { colors } from '@/theme';
 import type { Member } from './types';
 
+/** Whole minutes since a timestamp. */
+export const minutesSince = (at: number, now = Date.now()) => Math.max(0, Math.floor((now - at) / 60_000));
+
 export function ago(min: number): string {
   if (!Number.isFinite(min)) return 'never';
   if (min < 1) return 'just now';
@@ -9,10 +12,11 @@ export function ago(min: number): string {
   return h === 1 ? '1 hr ago' : `${h} hr ago`;
 }
 
-/** Minutes since midnight → "12:48 PM". */
+/** Minutes since midnight → "12:48 PM". Wraps values outside 0–24 h. */
 export function clock(min: number): string {
-  const h24 = Math.floor(min / 60) % 24;
-  const m = min % 60;
+  const day = ((Math.floor(min) % 1440) + 1440) % 1440;
+  const h24 = Math.floor(day / 60);
+  const m = day % 60;
   const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
   return `${h12}:${m.toString().padStart(2, '0')} ${h24 < 12 ? 'AM' : 'PM'}`;
 }
@@ -20,7 +24,7 @@ export function clock(min: number): string {
 /** Status line under a member's name, matching the mockups. */
 export function statusLine(m: Member): string {
   if (m.live || m.state === 'attention' || m.state === 'offline') return m.activity;
-  if (m.activityMin !== undefined) return `${m.activity} · ${m.activityMin} min`;
+  if (m.activitySince !== undefined) return `${m.activity} · ${minutesSince(m.activitySince)} min`;
   return `${m.activity} · ${ago(m.lastSyncMin)}`;
 }
 
