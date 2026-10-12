@@ -42,7 +42,20 @@
           "neverForLocation": true,
           "bluetoothAlwaysPermission": "Ping connects to your heart-rate band or Garmin watch to show your live heart rate."
         }
-      ]
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Ping records voice notes for your family when you hold the mic button."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#4F63F0"
+        }
+      ],
+      "expo-asset"
     ],
     "scheme": "ping",
     "experiments": {

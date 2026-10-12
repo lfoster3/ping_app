@@ -7,14 +7,15 @@ import { Card } from '@/components/Card';
 import { Screen, ScreenHeader } from '@/components/Screen';
 import { useFamily } from '@/data/FamilyProvider';
 import { statusLine } from '@/data/format';
+import { useMessages } from '@/messaging/MessagesProvider';
 import { colors, fonts, space } from '@/theme';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
 export default function SettingsScreen() {
-  const { members, connectLive, disconnectLive, garminUnsupported } = useFamily();
+  const { members, me, setMeId, connectLive, disconnectLive, garminUnsupported } = useFamily();
+  const messaging = useMessages();
   const pedro = members.find((m) => m.live);
-  const me = members[0];
   const [prefs, setPrefs] = useState({
     heartAlerts: true,
     arrivals: true,
@@ -25,8 +26,9 @@ export default function SettingsScreen() {
   const toggle = (k: keyof typeof prefs) => (v: boolean) => setPrefs((p) => ({ ...p, [k]: v }));
 
   return (
-    <Screen>
+    <Screen tabBar={false}>
       <ScreenHeader
+        back
         icon={<Ionicons name="settings" size={24} color={colors.primary} />}
         title="Settings"
         subtitle="Family, alerts & privacy"
@@ -36,12 +38,64 @@ export default function SettingsScreen() {
         <Avatar member={me} size={52} showState={false} />
         <View style={{ flex: 1 }}>
           <Text style={styles.profileName}>{me.name}</Text>
-          <Text style={styles.profileSub}>Family admin · Ping band connected</Text>
+          <Text style={styles.profileSub}>
+            {me.role === 'parent' ? 'Family admin' : 'Family member'} · Ping band connected
+          </Text>
         </View>
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>Admin</Text>
-        </View>
+        {me.role === 'parent' && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>Admin</Text>
+          </View>
+        )}
       </Card>
+
+      <Group title="This phone is">
+        <View style={styles.whoRow}>
+          {members.map((m) => {
+            const selected = m.id === me.id;
+            return (
+              <Pressable
+                key={m.id}
+                onPress={() => setMeId(m.id)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected }}
+                accessibilityLabel={m.name}
+                style={[styles.who, selected && styles.whoSelected]}>
+                <Avatar member={m} size={30} showState={false} />
+                <Text style={[styles.whoName, selected && { color: colors.primary }]}>{m.name}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Text style={styles.whoHint}>
+          Until accounts exist, pick who’s using this phone. Set two phones to different people to message between them.
+        </Text>
+      </Group>
+
+      <Group title="Messaging">
+        <Row
+          first
+          icon={messaging.mode === 'cloud' ? 'cloud-done-outline' : 'phone-portrait-outline'}
+          iconColor={messaging.mode === 'cloud' && messaging.status !== 'error' ? colors.green : colors.inkSoft}
+          title={messaging.mode === 'cloud' ? 'Synced with Supabase' : 'On this phone only'}
+          subtitle={
+            messaging.mode === 'local'
+              ? 'Add your Supabase keys to .env.local to sync (see README)'
+              : messaging.status === 'error'
+                ? messaging.error ?? 'Couldn’t connect'
+                : messaging.status === 'loading'
+                  ? 'Connecting…'
+                  : 'Texts, pings and voice notes sync live'
+          }
+        />
+        {messaging.mode === 'cloud' && (
+          <Row
+            icon="notifications-outline"
+            title="Message notifications"
+            subtitle={messaging.pushSkipped ?? `This phone gets ${me.name}’s messages`}
+          />
+        )}
+      </Group>
 
       <Group title="Family circle">
         {members.map((m, i) => (
@@ -83,8 +137,8 @@ export default function SettingsScreen() {
       </Group>
 
       <Group title="Devices">
-        <Row first icon="watch-outline" title="Mom's Ping band" subtitle="Firmware 1.2.0 · last sync 4 min ago">
-          <Text style={styles.value}>{me.battery}%</Text>
+        <Row first icon="watch-outline" title={`${me.name}'s Ping band`} subtitle="Firmware 1.2.0 · last sync 4 min ago">
+          {me.battery !== null && <Text style={styles.value}>{me.battery}%</Text>}
         </Row>
         {pedro?.live && (
           <Row
@@ -225,4 +279,26 @@ const styles = StyleSheet.create({
   pillMuted: { backgroundColor: '#F1F3F8' },
   pillText: { fontFamily: fonts.bodySemi, fontSize: 12.5, color: '#fff' },
   value: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.green },
+  whoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, padding: space.md },
+  who: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 5,
+    paddingLeft: 5,
+    paddingRight: 12,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+  },
+  whoSelected: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+  whoName: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.inkSoft },
+  whoHint: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    lineHeight: 17,
+    color: colors.muted,
+    paddingHorizontal: space.lg,
+    paddingBottom: space.md,
+  },
 });

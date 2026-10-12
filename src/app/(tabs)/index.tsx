@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -8,8 +9,9 @@ import { PingGlyph } from '@/components/PingGlyph';
 import { Screen, ScreenHeader, SectionHeader } from '@/components/Screen';
 import { Sparkline } from '@/components/Sparkline';
 import { useFamily } from '@/data/FamilyProvider';
-import { stateColor, statusLine, todayLabel } from '@/data/format';
-import type { Member } from '@/data/types';
+import { messagePreview, stateColor, statusLine, todayLabel } from '@/data/format';
+import { useMessages } from '@/messaging/MessagesProvider';
+import type { Member, Message } from '@/data/types';
 import { colors, fonts, space } from '@/theme';
 
 const NUMBER_WORDS = ['No one', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight'];
@@ -41,7 +43,8 @@ function summary(members: Member[]) {
 }
 
 export default function FamilyScreen() {
-  const { members, focus } = useFamily();
+  const { members, focus, meId } = useFamily();
+  const { thread, unreadFrom } = useMessages();
   const { title, detail, flagged } = summary(members);
 
   const openHero = () => {
@@ -83,35 +86,65 @@ export default function FamilyScreen() {
 
       <Card style={styles.list}>
         {members.map((m, i) => (
-          <Pressable
-            key={m.id}
-            onPress={() => openMember(m)}
-            accessibilityRole="button"
-            accessibilityLabel={`${m.name}, ${m.heartRate ?? 'no'} beats per minute, ${statusLine(m)}`}
-            style={({ pressed }) => [styles.row, i > 0 && styles.rowDivider, pressed && styles.pressed]}>
-            <Avatar member={m} />
-            <View style={styles.rowText}>
-              <Text style={styles.name}>{m.name}</Text>
-              <Text
-                style={[styles.status, m.state === 'attention' && { color: colors.amberInk }]}
-                numberOfLines={1}>
-                {statusLine(m)}
-              </Text>
-            </View>
-            <View style={styles.metric}>
-              <Text style={[styles.bpm, m.heartRate === null && { color: colors.faint }]}>
-                {m.heartRate ?? '--'}
-                <Text style={styles.bpmUnit}> bpm</Text>
-              </Text>
-              <Sparkline
-                data={m.live ? m.live.recent.slice(-30).map((r) => r.bpm) : m.heartRateHistory.slice(-10)}
-                color={m.state === 'ok' ? colors.green : stateColor[m.state]}
-              />
-            </View>
-          </Pressable>
+          <View key={m.id} style={i > 0 && styles.rowDivider}>
+            <Pressable
+              onPress={() => openMember(m)}
+              accessibilityRole="button"
+              accessibilityLabel={`${m.name}, ${m.heartRate ?? 'no'} beats per minute, ${statusLine(m)}`}
+              style={({ pressed }) => [styles.row, m.id !== meId && styles.rowWithMessages, pressed && styles.pressed]}>
+              <Avatar member={m} />
+              <View style={styles.rowText}>
+                <Text style={styles.name}>{m.name}</Text>
+                <Text
+                  style={[styles.status, m.state === 'attention' && { color: colors.amberInk }]}
+                  numberOfLines={1}>
+                  {statusLine(m)}
+                </Text>
+              </View>
+              <View style={styles.metric}>
+                <Text style={[styles.bpm, m.heartRate === null && { color: colors.faint }]}>
+                  {m.heartRate ?? '--'}
+                  <Text style={styles.bpmUnit}> bpm</Text>
+                </Text>
+                <Sparkline
+                  data={m.live ? m.live.recent.slice(-30).map((r) => r.bpm) : m.heartRateHistory.slice(-10)}
+                  color={m.state === 'ok' ? colors.green : stateColor[m.state]}
+                />
+              </View>
+            </Pressable>
+            {m.id !== meId && <MessageLine member={m} unread={unreadFrom(m.id)} last={thread(m.id).at(-1)} meId={meId} />}
+          </View>
         ))}
       </Card>
     </Screen>
+  );
+}
+
+/** "2 new messages · Practice is running…" under a member; opens the conversation. */
+function MessageLine({ member, unread, last, meId }: { member: Member; unread: number; last?: Message; meId: string }) {
+  const preview = last ? messagePreview(last, meId) : `Message ${member.name}`;
+  return (
+    <Pressable
+      onPress={() => router.push({ pathname: '/chat/[id]', params: { id: member.id } })}
+      accessibilityRole="button"
+      accessibilityLabel={unread ? `${unread} new ${unread === 1 ? 'message' : 'messages'} from ${member.name}` : `Message ${member.name}`}
+      style={({ pressed }) => [styles.messages, pressed && styles.pressed]}>
+      <Ionicons
+        name={unread ? 'chatbubble' : 'chatbubble-outline'}
+        size={13}
+        color={unread ? colors.primary : colors.faint}
+      />
+      <Text style={styles.messagesText} numberOfLines={1}>
+        {unread > 0 && (
+          <Text style={styles.messagesNew}>
+            {unread} new {unread === 1 ? 'message' : 'messages'}
+            {last ? ' · ' : ''}
+          </Text>
+        )}
+        {preview}
+      </Text>
+      <Ionicons name="chevron-forward" size={14} color={colors.faint} />
+    </Pressable>
   );
 }
 
@@ -129,6 +162,19 @@ const styles = StyleSheet.create({
   list: { overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: space.lg, paddingVertical: 14, gap: space.md },
   rowDivider: { borderTopWidth: 1, borderTopColor: colors.divider },
+  rowWithMessages: { paddingBottom: 8 },
+  // Lines up with the name, past the 44px avatar.
+  messages: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingLeft: space.lg + 44 + space.md,
+    paddingRight: space.lg,
+    paddingTop: 2,
+    paddingBottom: 12,
+  },
+  messagesText: { flex: 1, fontFamily: fonts.body, fontSize: 12.5, color: colors.muted },
+  messagesNew: { fontFamily: fonts.bodySemi, color: colors.primary },
   pressed: { backgroundColor: '#F8F9FC' },
   rowText: { flex: 1 },
   name: { fontFamily: fonts.bodySemi, fontSize: 15, color: colors.ink },

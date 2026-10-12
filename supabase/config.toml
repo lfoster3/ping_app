@@ -1,0 +1,11 @@
+# Only the settings Ping relies on; the Supabase CLI fills in defaults for the rest.
+project_id = "ping"
+
+# Both functions are called with the project's publishable key in the `apikey`
+# header (the app and the band have no user session), which isn't a JWT, so the
+# gateway check is off and each function checks the key itself.
+[functions.voice-note]
+verify_jwt = false
+
+[functions.notify]
+verify_jwt = false

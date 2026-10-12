@@ -6,6 +6,7 @@ import type { BottomTabBarProps } from 'expo-router/tabs';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useMessages } from '@/messaging/MessagesProvider';
 import { colors, fonts, shadow } from '@/theme';
 import { PingGlyph } from './PingGlyph';
 
@@ -13,19 +14,21 @@ type IconName = keyof typeof Ionicons.glyphMap;
 
 const TABS: Record<string, { label: string; icon: IconName; iconActive: IconName }> = {
   index: { label: 'Family', icon: 'people-outline', iconActive: 'people' },
+  messages: { label: 'Messages', icon: 'chatbubbles-outline', iconActive: 'chatbubbles' },
   map: { label: 'Map', icon: 'map-outline', iconActive: 'map' },
   trends: { label: 'Trends', icon: 'pulse-outline', iconActive: 'pulse' },
-  settings: { label: 'Settings', icon: 'settings-outline', iconActive: 'settings' },
 };
 
 /** Four tabs with the raised "Send ping" button in the middle. */
 export function PingTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { unreadMessages } = useMessages();
   const routes = state.routes.filter((r) => r.name in TABS);
   const half = Math.ceil(routes.length / 2);
 
   const renderTab = (route: (typeof routes)[number]) => {
     const meta = TABS[route.name];
+    const badge = route.name === 'messages' ? unreadMessages : 0;
     const focused = state.routes[state.index]?.key === route.key;
     const onPress = () => {
       const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
@@ -37,14 +40,21 @@ export function PingTabBar({ state, navigation }: BottomTabBarProps) {
         onPress={onPress}
         accessibilityRole="tab"
         accessibilityState={{ selected: focused }}
-        accessibilityLabel={meta.label}
+        accessibilityLabel={badge ? `${meta.label}, ${badge} unread` : meta.label}
         style={styles.tab}>
         <View style={[styles.tabInner, focused && styles.tabActive]}>
-          <Ionicons
-            name={focused ? meta.iconActive : meta.icon}
-            size={20}
-            color={focused ? colors.ink : colors.faint}
-          />
+          <View>
+            <Ionicons
+              name={focused ? meta.iconActive : meta.icon}
+              size={20}
+              color={focused ? colors.ink : colors.faint}
+            />
+            {badge > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{badge > 9 ? '9+' : badge}</Text>
+              </View>
+            )}
+          </View>
           <Text style={[styles.label, focused && styles.labelActive]}>{meta.label}</Text>
         </View>
       </Pressable>
@@ -105,6 +115,21 @@ const styles = StyleSheet.create({
   },
   tabActive: { backgroundColor: colors.primarySoft },
   label: { fontFamily: fonts.bodyMedium, fontSize: 10.5, color: colors.faint },
+  badge: {
+    position: 'absolute',
+    top: -5,
+    right: -9,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: colors.primary,
+    borderWidth: 2,
+    borderColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: { fontFamily: fonts.bodyBold, fontSize: 9, color: '#fff', lineHeight: 11 },
   labelActive: { color: colors.ink, fontFamily: fonts.bodySemi },
   center: { flex: 1, alignItems: 'center', gap: 4, paddingBottom: 6 },
   fabWrap: { marginTop: -30, borderRadius: 32, borderWidth: 4, borderColor: colors.surface, ...shadow.fab },
