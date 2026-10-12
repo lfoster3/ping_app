@@ -7,6 +7,8 @@ import { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { FamilyProvider } from '@/data/FamilyProvider';
+import { MessagesProvider } from '@/messaging/MessagesProvider';
+import { useNotificationTaps } from '@/messaging/push';
 import { colors } from '@/theme';
 
 SplashScreen.preventAutoHideAsync();
@@ -26,18 +28,24 @@ export default function RootLayout() {
     if (loaded || error) SplashScreen.hideAsync();
   }, [loaded, error]);
 
+  useNotificationTaps();
+
   if (!loaded && !error) return null;
 
   return (
     <SafeAreaProvider>
       <FamilyProvider>
-        <StatusBar style="dark" />
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="send-ping" options={{ presentation: 'modal' }} />
-          <Stack.Screen name="notifications" options={{ presentation: 'modal' }} />
-          <Stack.Screen name="map-full" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
-        </Stack>
+        <MessagesProvider>
+          <StatusBar style="dark" />
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="chat/[id]" />
+            <Stack.Screen name="settings" />
+            <Stack.Screen name="send-ping" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="notifications" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="map-full" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
+          </Stack>
+        </MessagesProvider>
       </FamilyProvider>
     </SafeAreaProvider>
   );

@@ -1,5 +1,5 @@
 import { colors } from '@/theme';
-import type { Member } from './types';
+import type { Member, Message } from './types';
 
 /** Whole minutes since a timestamp. */
 export const minutesSince = (at: number, now = Date.now()) => Math.max(0, Math.floor((now - at) / 60_000));
@@ -102,4 +102,29 @@ export function heartBadge(m: Member): { label: string; bg: string; fg: string }
 
 export function todayLabel(d = new Date()): string {
   return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+}
+
+/** "3:05 PM" today, "Yesterday", or "Mon" for older messages. */
+export function messageTime(at: number, now = Date.now()): string {
+  const d = new Date(at);
+  const days = Math.round((new Date(now).setHours(0, 0, 0, 0) - new Date(at).setHours(0, 0, 0, 0)) / 86_400_000);
+  if (days <= 0) return clock(d.getHours() * 60 + d.getMinutes());
+  if (days === 1) return 'Yesterday';
+  return d.toLocaleDateString('en-US', { weekday: 'short' });
+}
+
+/** "0:07" */
+export const duration = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, '0')}`;
+
+/** One-line summary for conversation lists, e.g. "You: On my way" or "Voice note · “Be home soon”". */
+export function messagePreview(m: Message, meId: string): string {
+  const who = m.from === meId ? 'You: ' : '';
+  switch (m.body.kind) {
+    case 'text':
+      return who + m.body.text;
+    case 'ping':
+      return `${who}Ping · ${m.body.text}`;
+    case 'voice':
+      return `${who}Voice note · ${m.body.transcript ? `“${m.body.transcript}”` : duration(m.body.durationSec)}`;
+  }
 }

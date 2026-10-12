@@ -12,6 +12,7 @@ import { PingGlyph } from '@/components/PingGlyph';
 import { Radar } from '@/components/Radar';
 import { useFamily } from '@/data/FamilyProvider';
 import { pingMessages } from '@/data/mock';
+import { useMessages } from '@/messaging/MessagesProvider';
 import type { Member } from '@/data/types';
 import { colors, fonts, radius, shadow, space } from '@/theme';
 
@@ -24,9 +25,10 @@ function recipientLabel(selected: Member[], everyone: boolean) {
 
 export default function SendPingScreen() {
   const insets = useSafeAreaInsets();
-  const { members, focusedId, sendPing } = useFamily();
-  // The signed-in parent is the first member; you don't ping yourself.
-  const others = members.slice(1);
+  const { members, focusedId, sendPing, meId } = useFamily();
+  const messages = useMessages();
+  // You don't ping yourself.
+  const others = members.filter((m) => m.id !== meId);
 
   const [to, setTo] = useState<string[]>(() => (others.some((m) => m.id === focusedId) ? [focusedId] : [others[0].id]));
   const [messageId, setMessageId] = useState(pingMessages[0].id);
@@ -43,6 +45,7 @@ export default function SendPingScreen() {
   const send = () => {
     const msg = pingMessages.find((m) => m.id === messageId)!;
     sendPing(to, msg.label, withVitals);
+    messages.sendPing(to, msg.label);
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setSent(true);
   };

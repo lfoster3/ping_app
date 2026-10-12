@@ -10,35 +10,63 @@ import { colors, fonts, space, type } from '@/theme';
 /** Height reserved at the bottom of scroll views for the floating tab bar. */
 export const TAB_BAR_SPACE = 110;
 
-export function Screen({ children, scroll = true }: { children: ReactNode; scroll?: boolean }) {
+type ScreenProps = {
+  children: ReactNode;
+  scroll?: boolean;
+  /** False for stack screens pushed over the tabs, which have no tab bar to clear. */
+  tabBar?: boolean;
+};
+
+export function Screen({ children, scroll = true, tabBar = true }: ScreenProps) {
   const insets = useSafeAreaInsets();
   const pad = { paddingTop: insets.top + space.md, paddingHorizontal: space.lg };
   if (!scroll) return <View style={[styles.root, pad]}>{children}</View>;
   return (
     <ScrollView
       style={styles.root}
-      contentContainerStyle={[pad, { paddingBottom: TAB_BAR_SPACE + insets.bottom }]}
+      contentContainerStyle={[pad, { paddingBottom: (tabBar ? TAB_BAR_SPACE : space.xxl) + insets.bottom }]}
       showsVerticalScrollIndicator={false}>
       {children}
     </ScrollView>
   );
 }
 
-type HeaderProps = { icon: ReactNode; title: string; subtitle: string };
+type HeaderProps = {
+  icon: ReactNode;
+  title: string;
+  subtitle: string;
+  /** Swap the icon for a back button and drop the settings shortcut (for Settings itself). */
+  back?: boolean;
+};
 
-export function ScreenHeader({ icon, title, subtitle }: HeaderProps) {
+export function ScreenHeader({ icon, title, subtitle, back }: HeaderProps) {
   const { unreadAlerts } = useFamily();
   return (
     <View style={styles.header}>
       <View style={{ flex: 1 }}>
         <View style={styles.titleRow}>
-          {icon}
+          {back ? (
+            <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
+              <Ionicons name="chevron-back" size={26} color={colors.ink} />
+            </Pressable>
+          ) : (
+            icon
+          )}
           <Text style={type.screenTitle} accessibilityRole="header">
             {title}
           </Text>
         </View>
         <Text style={[type.subtitle, styles.subtitle]}>{subtitle}</Text>
       </View>
+      {!back && (
+        <Pressable
+          onPress={() => router.push('/settings')}
+          accessibilityRole="button"
+          accessibilityLabel="Settings"
+          style={({ pressed }) => [styles.bell, styles.gear, pressed && { opacity: 0.6 }]}>
+          <Ionicons name="settings-outline" size={19} color={colors.inkSoft} />
+        </Pressable>
+      )}
       <Pressable
         onPress={() => router.push('/notifications')}
         accessibilityRole="button"
@@ -80,6 +108,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 4,
   },
+  gear: { marginRight: space.sm },
   bellDot: {
     position: 'absolute',
     top: 9,

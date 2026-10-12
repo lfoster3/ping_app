@@ -88,6 +88,34 @@ export type SentPing = {
   sentAt: number;
 };
 
+/** A voice note recorded on the band's mic (button press) or the phone's. */
+export type VoiceNote = {
+  kind: 'voice';
+  source: 'band' | 'phone';
+  durationSec: number;
+  /** A file or blob URI on this device, or a path in the voice-notes storage bucket. */
+  audio?: { uri: string } | { path: string };
+  /** Speech-to-text runs after the audio arrives; 'off' when no transcriber is set up. */
+  transcriptStatus: 'pending' | 'done' | 'failed' | 'off';
+  transcript?: string;
+};
+
+export type MessageBody =
+  | { kind: 'text'; text: string }
+  /** A ping sent from the Send ping sheet, shown inline in the thread. */
+  | { kind: 'ping'; text: string }
+  | VoiceNote;
+
+/** Conversations are one-to-one between family members. */
+export type Message = {
+  id: string;
+  /** Member ids. */
+  from: string;
+  to: string;
+  at: number;
+  body: MessageBody;
+};
+
 export type AlertItem = {
   id: string;
   memberId: string;

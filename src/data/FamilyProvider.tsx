@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import type { HeartRateMonitor, HeartRateReading, MonitorStatus } from '@/devices/heartRate';
@@ -6,7 +7,7 @@ import { createMonitor } from '@/devices/monitor';
 import { createSimulatedLocationFeed } from '@/devices/simulatedLocation';
 import { createSimulatedMonitor } from '@/devices/simulated';
 import { emptyZoneCounts, minutesSince, zoneOf, type ZoneCounts } from './format';
-import { initialAlerts, initialMembers, LOADED_AT, NOW_MIN, pedroProfile, places } from './mock';
+import { DEFAULT_ME_ID, initialAlerts, initialMembers, LOADED_AT, NOW_MIN, pedroProfile, places } from './mock';
 import { baseline, overnightHeart, RESTING_ALERT_BPM } from './pedroHistory';
 import type { AlertItem, GpsInfo, LiveSource, Member, Place, SentPing, Visit } from './types';
 
@@ -118,6 +119,8 @@ function buildPedro(live: LiveState, now: number): Member {
   };
 }
 
+const ME_KEY = 'ping.meId';
+
 /** Within this distance of a saved place counts as being there. */
 const AT_PLACE_M = 75;
 
@@ -179,6 +182,10 @@ type FamilyContextValue = {
   sendPing: (to: string[], message: string, withVitals: boolean) => SentPing;
   markAlertsRead: () => void;
   unreadAlerts: number;
+  /** Who this phone is signed in as. There are no accounts yet, so it's picked in Settings. */
+  meId: string;
+  me: Member;
+  setMeId: (id: string) => void;
   /** Why real Bluetooth can't work here (e.g. Safari, Expo Go), or null. */
   garminUnsupported: string | null;
   /** Call directly from a button press. */
@@ -193,6 +200,7 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
   const [alerts] = useState(initialAlerts);
   const [readAlertIds, setReadAlertIds] = useState<Set<string>>(new Set());
   const [pings, setPings] = useState<SentPing[]>([]);
+  const [meId, setMeIdState] = useState(DEFAULT_ME_ID);
   const [focusedId, setFocusedId] = useState('nico');
 
   const [gps, setGps] = useState<Record<string, GpsInfo>>({});
@@ -287,6 +295,17 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     return ping;
   }, []);
 
+  useEffect(() => {
+    AsyncStorage.getItem(ME_KEY)
+      .then((id) => id && setMeIdState(id))
+      .catch(() => {});
+  }, []);
+
+  const setMeId = useCallback((id: string) => {
+    setMeIdState(id);
+    AsyncStorage.setItem(ME_KEY, id).catch(() => {});
+  }, []);
+
   const markAlertsRead = useCallback(() => {
     setReadAlertIds(new Set(alerts.map((a) => a.id)));
   }, [alerts]);
@@ -305,11 +324,18 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
       sendPing,
       markAlertsRead,
       unreadAlerts: alerts.filter((a) => !readAlertIds.has(a.id)).length,
+      meId,
+      me: allMembers.find((m) => m.id === meId) ?? allMembers[0],
+      setMeId,
       garminUnsupported,
       connectLive,
       disconnectLive,
     }),
-    [allMembers, alerts, pings, focusedId, memberById, placeById, sendPing, markAlertsRead, readAlertIds, garminUnsupported, connectLive, disconnectLive],
+    [
+      allMembers, alerts, pings, focusedId, memberById, placeById, sendPing, markAlertsRead, readAlertIds,
+      meId, setMeId,
+      garminUnsupported, connectLive, disconnectLive,
+    ],
   );
 
   return <FamilyContext.Provider value={value}>{children}</FamilyContext.Provider>;

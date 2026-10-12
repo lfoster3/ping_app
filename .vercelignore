@@ -1,0 +1,9 @@
+# Keep uploads to what the web build needs.
+node_modules
+.expo
+dist
+ios
+android
+supabase
+.env*.local
+/Screenshot*.png

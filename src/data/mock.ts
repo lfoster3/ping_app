@@ -1,5 +1,5 @@
 import { clock } from './format';
-import type { AlertItem, Member, PingMessage, Place } from './types';
+import type { AlertItem, Member, Message, PingMessage, Place } from './types';
 
 const MOCK_HISTORY = { historySlotMin: 30, historyStartSlot: 0 };
 
@@ -207,3 +207,44 @@ export const initialAlerts: AlertItem[] = [
     at: minAgo(150),
   },
 ];
+
+/** Who the app is signed in as until accounts exist (switchable in Settings for demos). */
+export const DEFAULT_ME_ID = 'mom';
+
+const text = (id: string, from: string, to: string, min: number, t: string): Message => ({
+  id,
+  from,
+  to,
+  at: minAgo(min),
+  body: { kind: 'text', text: t },
+});
+
+/** Used when no messaging backend is configured; everything stays on this device. */
+export const initialMessages: Message[] = [
+  text('m1', 'mom', 'nico', 52, 'Have fun at the park! Back by 5?'),
+  text('m2', 'nico', 'mom', 49, 'yep 👍'),
+  {
+    id: 'm3',
+    from: 'nico',
+    to: 'mom',
+    at: minAgo(9),
+    body: {
+      kind: 'voice',
+      source: 'band',
+      durationSec: 7,
+      transcriptStatus: 'done',
+      transcript: 'Practice is running a little late, I’ll be home by five thirty.',
+    },
+  },
+  text('m4', 'mom', 'pedro', 75, 'How was the exam?'),
+  text('m5', 'pedro', 'mom', 14, 'Went well! Heading to the gym now'),
+  text('m6', 'mom', 'luke', 190, 'Have a good day at school'),
+  text('m7', 'luke', 'mom', 186, 'thanks mom'),
+  text('m8', 'dad', 'mom', 130, 'Stuck in a meeting until 4'),
+  text('m9', 'mom', 'dad', 128, 'No worries, I’ll grab Luke'),
+];
+
+/** Mom's read positions in the mock conversations above. */
+export const initialReadAt: Record<string, Record<string, number>> = {
+  mom: { nico: minAgo(49), pedro: minAgo(75), luke: minAgo(186), dad: minAgo(128) },
+};
