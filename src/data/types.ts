@@ -21,7 +21,7 @@ export type Visit = {
   to: number | null;
 };
 
-export type LiveSource = 'garmin' | 'simulated';
+export type LiveSource = 'garmin' | 'simulated' | 'band';
 
 /** Present on members whose data streams from a real (or simulated) sensor. */
 export type LiveInfo = {
