@@ -1,12 +1,12 @@
-// Pedro's real heart-rate history — a snapshot pulled from his Garmin
-// (Forerunner 970) and WHOOP through AthleteData on 2026-09-28.
+// Pedro's real heart-rate history — a snapshot pulled from his WHOOP
+// and Garmin (Forerunner 970) through AthleteData on 2026-09-28.
 // Nothing here is generated. Live readings still come over Bluetooth;
 // this file only covers the past. To refresh, pull a new snapshot and
 // replace the arrays (see README › "Pedro's history").
 
 export const HISTORY_SNAPSHOT = {
   pulledAt: '2026-09-28',
-  device: 'Garmin Forerunner 970 + WHOOP',
+  device: 'WHOOP + Garmin Forerunner 970',
   /** Pedro's timezone (EDT) — used to label workout start times. */
   utcOffsetMin: -240,
 };
