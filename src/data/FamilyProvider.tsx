@@ -2,6 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import type { HeartRateMonitor, HeartRateReading, MonitorStatus } from '@/devices/heartRate';
+import { BAND_MEMBER_ID, latestBandFix, subscribeBand } from '@/devices/bandTelemetry';
+import { createBandMonitor } from '@/devices/bandMonitor';
 import { distanceM, type LocationFix } from '@/devices/location';
 import { createMonitor } from '@/devices/monitor';
 import { createSimulatedLocationFeed } from '@/devices/simulatedLocation';
@@ -17,6 +19,8 @@ const LIVE_SLOT_MIN = 5;
 const RECENT_MS = 90_000;
 /** No reading for this long while "connected" means the watch lost contact. */
 const STALE_MS = 15_000;
+/** Once the band has reported a real position, hold back Pedro's simulated one for this long. */
+const BAND_FIX_PRIORITY_MS = 10 * 60_000;
 
 type LiveState = {
   source: LiveSource | null;
@@ -66,18 +70,19 @@ function addReading(prev: LiveState, r: HeartRateReading): LiveState {
 function buildPedro(live: LiveState, now: number): Member {
   const { latest } = live;
   const stale = !latest || now - latest.at > STALE_MS;
-  const label = live.source === 'simulated' ? 'Simulated signal' : live.deviceName ?? 'Garmin';
+  const device = live.source === 'band' ? 'Ping band' : 'Garmin';
+  const label = live.source === 'simulated' ? 'Simulated signal' : live.deviceName ?? device;
 
   let state: Member['state'] = 'offline';
-  let activity = 'Garmin not connected';
-  if (live.status === 'connecting') activity = 'Connecting to Garmin…';
-  else if (live.status === 'reconnecting') activity = 'Reconnecting to Garmin…';
-  else if (live.status === 'error') activity = 'Garmin connection failed';
+  let activity = `${device} not connected`;
+  if (live.status === 'connecting') activity = `Connecting to ${device}…`;
+  else if (live.status === 'reconnecting') activity = `Reconnecting to ${device}…`;
+  else if (live.status === 'error') activity = `${device} connection failed`;
   else if (live.status === 'connected' && stale) activity = 'Waiting for heart rate…';
   else if (live.status === 'connected' && latest) {
     activity = `Live · ${label}`;
     state = latest.bpm >= 151 ? 'attention' : latest.bpm > 100 ? 'active' : 'ok';
-  } else if (latest) activity = 'Garmin disconnected';
+  } else if (latest) activity = `${device} disconnected`;
 
   // When the watch isn't streaming, fall back to the real overnight trend.
   const resting = baseline(overnightHeart, (r) => r.resting);
@@ -222,24 +227,47 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => () => monitorRef.current?.disconnect(), []);
 
-  // Positions for everyone, every GPS_INTERVAL_MS. Swap in the real feed here.
+  const lastBandFixAt = useRef(0);
+
+  const applyFix = useCallback((memberId: string, source: GpsInfo['source'], fix: LocationFix) => {
+    setGps((prev) => ({ ...prev, [memberId]: { source, fix } }));
+    setVisits((prev) => {
+      const before = prev[memberId] ?? [];
+      const after = trackVisits(before, fix);
+      return after === before ? prev : { ...prev, [memberId]: after };
+    });
+  }, []);
+
+  // Positions for everyone else, every GPS_INTERVAL_MS (simulated until their bands exist).
+  // Pedro's comes from the real band whenever it is reporting; see the effect below.
   useEffect(() => {
     const feed = createSimulatedLocationFeed();
     feed.start((memberId, fix) => {
-      setGps((prev) => ({ ...prev, [memberId]: { source: feed.source, fix } }));
-      setVisits((prev) => {
-        const before = prev[memberId] ?? [];
-        const after = trackVisits(before, fix);
-        return after === before ? prev : { ...prev, [memberId]: after };
-      });
+      if (memberId === BAND_MEMBER_ID && Date.now() - lastBandFixAt.current < BAND_FIX_PRIORITY_MS) return;
+      applyFix(memberId, feed.source, fix);
     });
     return () => feed.stop();
-  }, []);
+  }, [applyFix]);
+
+  // Real GPS from the Ping band (needs Supabase; does nothing in demo mode).
+  useEffect(() => {
+    let cancelled = false;
+    const onFix = (fix: LocationFix) => {
+      lastBandFixAt.current = Date.now();
+      applyFix(BAND_MEMBER_ID, 'gps', fix);
+    };
+    latestBandFix().then((fix) => fix && !cancelled && onFix(fix));
+    const unsubscribe = subscribeBand((s) => s.fix && onFix(s.fix));
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [applyFix]);
 
   const connectLive = useCallback(
     (source: LiveSource) => {
       monitorRef.current?.disconnect();
-      const monitor = source === 'garmin' ? garmin : createSimulatedMonitor();
+      const monitor = source === 'garmin' ? garmin : source === 'band' ? createBandMonitor() : createSimulatedMonitor();
       monitorRef.current = monitor;
       setLive((prev) => ({ ...prev, source, status: 'connecting', error: undefined }));
       // Ignore late events from a monitor the user has since replaced.
