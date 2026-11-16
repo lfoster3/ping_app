@@ -21,7 +21,7 @@ export type Visit = {
   to: number | null;
 };
 
-export type LiveSource = 'garmin' | 'simulated';
+export type LiveSource = 'ble' | 'esp32' | 'simulated';
 
 /** Present on members whose data streams from a real (or simulated) sensor. */
 export type LiveInfo = {
@@ -70,7 +70,7 @@ export type Member = {
   visits: Visit[];
   gps?: GpsInfo;
   live?: LiveInfo;
-  /** Has real Garmin/WHOOP history (src/data/pedroHistory.ts). */
+  /** Has real WHOOP history (src/data/pedroHistory.ts). */
   realHistory?: boolean;
 };
 

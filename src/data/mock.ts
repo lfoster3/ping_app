@@ -107,31 +107,6 @@ export const initialMembers: Member[] = [
     visits: [{ placeId: 'work', from: before(140), to: null }],
   },
   {
-    id: 'nico',
-    name: 'Nico',
-    role: 'child',
-    avatar: { bg: '#DCF1E3', ink: '#1F2937' },
-    state: 'active',
-    activity: 'Working out',
-    lastSyncMin: 3,
-    activitySince: minAgo(38),
-    heartRate: 141,
-    heartRateHistory: day(37, [
-      { until: 7 * H, base: 62, jitter: 5 },
-      { until: 8 * H, base: 84, jitter: 8 },
-      { until: 12.5 * H, base: 76, jitter: 7 },
-      { until: 14.5 * H, base: 82, jitter: 8 },
-      { until: 24 * H, base: 128, jitter: 10 },
-    ], 141),
-    ...MOCK_HISTORY,
-    battery: 72,
-    location: { label: 'Near Riverside Park', coords: { lat: 41.70336, lng: -86.23919 } },
-    visits: [
-      { placeId: 'home', from: before(110), to: before(45) },
-      { placeId: 'school', from: before(170), to: before(118) },
-    ],
-  },
-  {
     id: 'luke',
     name: 'Luke',
     role: 'child',
@@ -155,7 +130,7 @@ export const initialMembers: Member[] = [
 ];
 
 /**
- * Pedro wears a real Garmin. Everything live (heart rate, status, history) is
+ * Pedro wears a WHOOP. Everything live (heart rate, status, history) is
  * filled in by FamilyProvider from the Bluetooth stream — nothing here is mock.
  */
 export const pedroProfile: Pick<Member, 'id' | 'name' | 'role' | 'avatar'> = {
@@ -163,6 +138,17 @@ export const pedroProfile: Pick<Member, 'id' | 'name' | 'role' | 'avatar'> = {
   name: 'Pedro',
   role: 'child',
   avatar: { bg: '#E7E1FB', ink: '#1F2937' },
+};
+
+/**
+ * Nico's sensor data comes from an ESP32 over Wi-Fi. Everything live is
+ * filled in by FamilyProvider from the ESP32 feed — nothing here is mock.
+ */
+export const nicoProfile: Pick<Member, 'id' | 'name' | 'role' | 'avatar'> = {
+  id: 'nico',
+  name: 'Nico',
+  role: 'child',
+  avatar: { bg: '#DCF1E3', ink: '#1F2937' },
 };
 
 export const pingMessages: PingMessage[] = [

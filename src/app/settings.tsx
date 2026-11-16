@@ -13,9 +13,10 @@ import { colors, fonts, space } from '@/theme';
 type IconName = keyof typeof Ionicons.glyphMap;
 
 export default function SettingsScreen() {
-  const { members, me, setMeId, connectLive, disconnectLive, garminUnsupported } = useFamily();
+  const { members, me, setMeId, connectBle, disconnectBle, bleUnsupported, connectEsp32, disconnectEsp32 } = useFamily();
   const messaging = useMessages();
-  const pedro = members.find((m) => m.live);
+  const pedro = members.find((m) => m.id === 'pedro');
+  const nico = members.find((m) => m.id === 'nico');
   const [prefs, setPrefs] = useState({
     heartAlerts: true,
     arrivals: true,
@@ -104,7 +105,7 @@ export default function SettingsScreen() {
             first={i === 0}
             leading={<Avatar member={m} size={32} showState={false} />}
             title={m.name}
-            subtitle={`${m.role === 'parent' ? 'Parent' : 'Child'} · ${m.live ? 'Garmin' : `band ${m.battery}%`}`}
+            subtitle={`${m.role === 'parent' ? 'Parent' : 'Child'} · ${m.id === 'pedro' ? 'WHOOP' : m.id === 'nico' ? 'ESP32' : `band ${m.battery ?? '--'}%`}`}
             chevron
           />
         ))}
@@ -144,24 +145,48 @@ export default function SettingsScreen() {
           <Row
             icon="bluetooth"
             iconColor={pedro.live.status === 'connected' ? colors.primary : colors.inkSoft}
-            title={`${pedro.name}'s ${pedro.live.source === 'simulated' ? 'simulated signal' : 'Garmin'}`}
+            title={`${pedro.name}'s ${pedro.live.source === 'simulated' ? 'simulated signal' : 'WHOOP'}`}
             subtitle={
               pedro.live.status === 'error'
                 ? pedro.live.error
                 : pedro.live.status === 'idle'
-                  ? garminUnsupported ?? 'Broadcast Heart Rate over Bluetooth'
+                  ? bleUnsupported ?? 'Broadcast Heart Rate over Bluetooth'
                   : statusLine(pedro)
             }>
             {pedro.live.status === 'idle' || pedro.live.status === 'error' ? (
-              <Pill label="Connect" onPress={() => connectLive('garmin')} disabled={!!garminUnsupported} />
+              <Pill label="Connect" onPress={() => connectBle('ble')} disabled={!!bleUnsupported} />
             ) : (
-              <Pill label="Disconnect" onPress={disconnectLive} tone="muted" />
+              <Pill label="Disconnect" onPress={disconnectBle} tone="muted" />
+            )}
+          </Row>
+        )}
+        {nico?.live && (
+          <Row
+            icon="wifi"
+            iconColor={nico.live.status === 'connected' ? colors.primary : colors.inkSoft}
+            title={`${nico.name}'s ${nico.live.source === 'simulated' ? 'simulated signal' : 'ESP32 sensor'}`}
+            subtitle={
+              nico.live.status === 'error'
+                ? nico.live.error
+                : nico.live.status === 'idle'
+                  ? 'Heart rate + GPS over Wi-Fi'
+                  : statusLine(nico)
+            }>
+            {nico.live.status === 'idle' || nico.live.status === 'error' ? (
+              <Pill label="Connect" onPress={connectEsp32} />
+            ) : (
+              <Pill label="Disconnect" onPress={disconnectEsp32} tone="muted" />
             )}
           </Row>
         )}
         {__DEV__ && pedro?.live && pedro.live.source !== 'simulated' && (
           <Row icon="flask-outline" title="Simulate Pedro's signal" subtitle="Dev only — fake data, labelled as simulated">
-            <Pill label="Start" onPress={() => connectLive('simulated')} tone="muted" />
+            <Pill label="Start" onPress={() => connectBle('simulated')} tone="muted" />
+          </Row>
+        )}
+        {__DEV__ && nico?.live && nico.live.source !== 'simulated' && (
+          <Row icon="flask-outline" title="Simulate Nico's sensor" subtitle="Dev only — fake ESP32 data">
+            <Pill label="Start" onPress={() => connectEsp32('simulated')} tone="muted" />
           </Row>
         )}
       </Group>

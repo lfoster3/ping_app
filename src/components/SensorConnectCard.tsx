@@ -6,31 +6,47 @@ import type { Member } from '@/data/types';
 import { colors, fonts, radius, space } from '@/theme';
 import { Card } from './Card';
 
-const STEPS = [
-  'On the Garmin, turn on Broadcast Heart Rate (Settings › Sensors & Accessories › Wrist Heart Rate, or the “Broadcast HR” control).',
-  'Keep the watch close, then tap Connect and choose it from the list.',
+const BLE_STEPS = [
+  'On the WHOOP, make sure Bluetooth Heart Rate Broadcast is turned on (Device Settings in the WHOOP app).',
+  'Keep the band close, then tap Connect and choose it from the list.',
 ];
 
-/** Shown for a live member (Pedro) whenever their watch isn't streaming. */
-export function GarminConnectCard({ member }: { member: Member }) {
-  const { connectLive, garminUnsupported } = useFamily();
+const ESP32_STEPS = [
+  'Plug the ESP32 into your computer and run: node tools/serial-bridge.js',
+  'Put your finger on the sensor, then tap Connect.',
+];
+
+/** Shown for a live member whenever their sensor isn't streaming. */
+export function SensorConnectCard({ member }: { member: Member }) {
+  const { connectBle, bleUnsupported, connectEsp32 } = useFamily();
   const live = member.live;
   if (!live) return null;
+
+  const isEsp32 = member.id === 'nico';
   const busy = live.status === 'connecting' || live.status === 'reconnecting';
+  const steps = isEsp32 ? ESP32_STEPS : BLE_STEPS;
+  const unsupported = isEsp32 ? null : bleUnsupported;
+  const onConnect = isEsp32 ? () => connectEsp32() : () => connectBle('ble');
+  const connectLabel = isEsp32 ? 'Connect Sensor' : 'Connect WHOOP';
+  const icon: keyof typeof Ionicons.glyphMap = isEsp32 ? 'wifi' : 'bluetooth';
 
   return (
     <Card style={styles.card}>
       <View style={styles.head}>
         <View style={styles.icon}>
-          <Ionicons name="watch-outline" size={20} color={colors.primary} />
+          <Ionicons name={isEsp32 ? 'hardware-chip-outline' : 'watch-outline'} size={20} color={colors.primary} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>Connect {member.name}&apos;s Garmin</Text>
-          <Text style={styles.sub}>Live heart rate over Bluetooth, updated every second</Text>
+          <Text style={styles.title}>Connect {member.name}&apos;s {isEsp32 ? 'sensor' : 'WHOOP'}</Text>
+          <Text style={styles.sub}>
+            {isEsp32
+              ? 'Heart rate and GPS over Wi-Fi, updated every second'
+              : 'Live heart rate over Bluetooth, updated every second'}
+          </Text>
         </View>
       </View>
 
-      {STEPS.map((step, i) => (
+      {steps.map((step, i) => (
         <View key={i} style={styles.step}>
           <Text style={styles.stepNum}>{i + 1}</Text>
           <Text style={styles.stepText}>{step}</Text>
@@ -43,31 +59,36 @@ export function GarminConnectCard({ member }: { member: Member }) {
           <Text style={styles.errorText}>{live.error}</Text>
         </View>
       )}
-      {garminUnsupported && (
+      {unsupported && (
         <View style={styles.error}>
           <Ionicons name="information-circle" size={16} color={colors.amberInk} />
-          <Text style={[styles.errorText, { color: colors.amberInk }]}>{garminUnsupported}</Text>
+          <Text style={[styles.errorText, { color: colors.amberInk }]}>{unsupported}</Text>
         </View>
       )}
 
       <Pressable
-        onPress={() => connectLive('garmin')}
-        disabled={busy || !!garminUnsupported}
+        onPress={onConnect}
+        disabled={busy || !!unsupported}
         accessibilityRole="button"
         style={({ pressed }) => [
           styles.primary,
-          (busy || garminUnsupported) && { opacity: 0.5 },
+          (busy || unsupported) && { opacity: 0.5 },
           pressed && { opacity: 0.85 },
         ]}>
-        {busy ? <ActivityIndicator color="#fff" /> : <Ionicons name="bluetooth" size={17} color="#fff" />}
+        {busy ? <ActivityIndicator color="#fff" /> : <Ionicons name={icon} size={17} color="#fff" />}
         <Text style={styles.primaryText}>
-          {live.status === 'reconnecting' ? 'Reconnecting…' : busy ? 'Connecting…' : 'Connect Garmin'}
+          {live.status === 'reconnecting' ? 'Reconnecting\u2026' : busy ? 'Connecting\u2026' : connectLabel}
         </Text>
       </Pressable>
 
       {__DEV__ && (
-        <Pressable onPress={() => connectLive('simulated')} accessibilityRole="button" style={styles.secondary}>
-          <Text style={styles.secondaryText}>No watch nearby? Use a simulated signal (dev only)</Text>
+        <Pressable
+          onPress={() => { if (isEsp32) connectEsp32('simulated'); else connectBle('simulated'); }}
+          accessibilityRole="button"
+          style={styles.secondary}>
+          <Text style={styles.secondaryText}>
+            {isEsp32 ? 'No board nearby? Use a simulated signal (dev only)' : 'No watch nearby? Use a simulated signal (dev only)'}
+          </Text>
         </Pressable>
       )}
     </Card>

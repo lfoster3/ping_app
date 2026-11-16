@@ -1,5 +1,5 @@
-// Bluetooth LE Heart Rate Profile — the standard every chest strap and most
-// Garmin watches speak when "Broadcast Heart Rate" is turned on.
+// Bluetooth LE Heart Rate Profile — the standard every chest strap, WHOOP,
+// and Garmin watch speaks when heart rate broadcasting is turned on.
 
 export const HR_SERVICE = '0000180d-0000-1000-8000-00805f9b34fb';
 export const HR_MEASUREMENT = '00002a37-0000-1000-8000-00805f9b34fb';

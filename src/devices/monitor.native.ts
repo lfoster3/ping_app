@@ -49,7 +49,7 @@ function scanForHeartRate(manager: BleManager) {
   return new Promise<Device>((resolve, reject) => {
     const timer = setTimeout(() => {
       manager.stopDeviceScan();
-      reject(new Error('No heart-rate broadcast found. Turn on Broadcast Heart Rate on the Garmin and keep it close.'));
+      reject(new Error('No heart-rate broadcast found. Turn on heart rate broadcasting on the WHOOP and keep it close.'));
     }, SCAN_TIMEOUT_MS);
     manager.startDeviceScan([HR_SERVICE], null, (error, device) => {
       if (error) {

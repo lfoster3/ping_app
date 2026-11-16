@@ -142,7 +142,7 @@ function DeltaChip({ delta, unit, higherIsBad }: { delta: number; unit: string; 
   );
 }
 
-/** Pedro's real history from Garmin + WHOOP (a snapshot; live data is separate). */
+/** Pedro's real history from WHOOP + Garmin (a snapshot; live data is separate). */
 export function HeartHistory({ name }: { name: string }) {
   const [metric, setMetric] = useState<'resting' | 'hrv'>('resting');
   const [allWorkouts, setAllWorkouts] = useState(false);
@@ -199,14 +199,14 @@ export function HeartHistory({ name }: { name: string }) {
       <Card style={[styles.card, { marginTop: space.md }]}>
         <Text style={styles.cardTitle}>Daily heart rate range</Text>
         <Text style={styles.caption}>
-          Garmin, all day · today so far (until {dailyHeartRate[dailyHeartRate.length - 1].partialUntil})
+          All day · today so far (until {dailyHeartRate[dailyHeartRate.length - 1].partialUntil})
         </Text>
         <RangeBars />
       </Card>
 
       <Card style={[styles.card, { marginTop: space.md, paddingBottom: space.sm }]}>
         <Text style={styles.cardTitle}>Workouts</Text>
-        <Text style={styles.caption}>Heart rate per session, recorded on the Garmin</Text>
+        <Text style={styles.caption}>Heart rate per session</Text>
         {list.map((wk, i) => (
           <View key={`${wk.date}-${wk.start}`} style={[styles.workout, i > 0 && styles.divider]}>
             <View style={styles.wIcon}>

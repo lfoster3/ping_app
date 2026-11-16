@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BeatingHeart } from '@/components/BeatingHeart';
 import { Card } from '@/components/Card';
-import { GarminConnectCard } from '@/components/GarminConnectCard';
+import { SensorConnectCard } from '@/components/SensorConnectCard';
 import { HeartChart } from '@/components/HeartChart';
 import { HeartHistory } from '@/components/HeartHistory';
 import { HeartWave } from '@/components/HeartWave';
@@ -94,7 +94,7 @@ export default function TrendsScreen() {
 
       {live && live.status !== 'connected' && (
         <View style={{ marginTop: space.md }}>
-          <GarminConnectCard member={focused} />
+          <SensorConnectCard member={focused} />
         </View>
       )}
 

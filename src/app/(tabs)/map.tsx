@@ -57,7 +57,7 @@ export default function MapScreen() {
             <Ionicons name="location-outline" size={28} color={colors.faint} />
             <Text style={styles.noLocTitle}>{focused.name} isn&apos;t sharing location yet</Text>
             <Text style={styles.noLocBody}>
-              {focused.live ? 'Their Garmin only streams heart rate for now.' : 'Location will appear once their band syncs.'}
+              {focused.live ? 'Connect their sensor to start sharing location.' : 'Location will appear once their band syncs.'}
             </Text>
             {focused.live && (
               <Pressable onPress={() => router.navigate('/trends')} accessibilityRole="button" hitSlop={8}>
