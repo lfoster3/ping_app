@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { Avatar } from '@/components/Avatar';
 import { Card } from '@/components/Card';
 import { Screen, ScreenHeader } from '@/components/Screen';
+import { bandUnavailableReason } from '@/devices/bandTelemetry';
 import { useFamily } from '@/data/FamilyProvider';
 import { statusLine } from '@/data/format';
 import { useMessages } from '@/messaging/MessagesProvider';
@@ -144,7 +145,7 @@ export default function SettingsScreen() {
           <Row
             icon="bluetooth"
             iconColor={pedro.live.status === 'connected' ? colors.primary : colors.inkSoft}
-            title={`${pedro.name}'s ${pedro.live.source === 'simulated' ? 'simulated signal' : 'Garmin'}`}
+            title={`${pedro.name}'s ${pedro.live.source === 'simulated' ? 'simulated signal' : pedro.live.source === 'band' ? 'Ping band feed' : 'Garmin'}`}
             subtitle={
               pedro.live.status === 'error'
                 ? pedro.live.error
@@ -153,10 +154,19 @@ export default function SettingsScreen() {
                   : statusLine(pedro)
             }>
             {pedro.live.status === 'idle' || pedro.live.status === 'error' ? (
-              <Pill label="Connect" onPress={() => connectLive('garmin')} disabled={!!garminUnsupported} />
+              <Pill
+                label="Connect"
+                onPress={() => connectLive(pedro.live?.source === 'band' ? 'band' : 'garmin')}
+                disabled={pedro.live.source === 'band' ? !!bandUnavailableReason() : !!garminUnsupported}
+              />
             ) : (
               <Pill label="Disconnect" onPress={disconnectLive} tone="muted" />
             )}
+          </Row>
+        )}
+        {pedro?.live && pedro.live.source !== 'band' && (
+          <Row icon="radio-outline" title={`${pedro.name}'s Ping band`} subtitle={bandUnavailableReason() ?? 'Live GPS and heart rate from the band'}>
+            <Pill label="Use" onPress={() => connectLive('band')} disabled={!!bandUnavailableReason()} />
           </Row>
         )}
         {__DEV__ && pedro?.live && pedro.live.source !== 'simulated' && (
