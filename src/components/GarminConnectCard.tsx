@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useFamily } from '@/data/FamilyProvider';
+import { bandUnavailableReason } from '@/devices/bandTelemetry';
 import type { Member } from '@/data/types';
 import { colors, fonts, radius, space } from '@/theme';
 import { Card } from './Card';
@@ -16,6 +17,7 @@ export function GarminConnectCard({ member }: { member: Member }) {
   const { connectLive, garminUnsupported } = useFamily();
   const live = member.live;
   if (!live) return null;
+  const bandUnsupported = bandUnavailableReason();
   const busy = live.status === 'connecting' || live.status === 'reconnecting';
 
   return (
@@ -63,6 +65,14 @@ export function GarminConnectCard({ member }: { member: Member }) {
         <Text style={styles.primaryText}>
           {live.status === 'reconnecting' ? 'Reconnecting…' : busy ? 'Connecting…' : 'Connect Garmin'}
         </Text>
+      </Pressable>
+
+      <Pressable
+        onPress={() => connectLive('band')}
+        disabled={busy || !!bandUnsupported}
+        accessibilityRole="button"
+        style={[styles.secondary, (busy || bandUnsupported) && { opacity: 0.5 }]}>
+        <Text style={styles.secondaryText}>{bandUnsupported ?? 'Use the Ping band instead (live feed)'}</Text>
       </Pressable>
 
       {__DEV__ && (
